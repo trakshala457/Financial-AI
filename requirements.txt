@@ -5,3 +5,4 @@ streamlit
 langchain
 scikit-learn
 gTTS
+sentence-transformers

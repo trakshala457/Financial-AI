@@ -5,7 +5,7 @@ import streamlit as st
 
 from advisor import generate_financial_advice
 from fraud_detector import get_transaction_embeddings, detect_anomalies
-from tts_reporter import generate_audio_report
+from tts_reporter import get_latest_finance_news_text
 
 load_dotenv()
 api_key = os.getenv('GEMINI_API_KEY')
@@ -17,14 +17,17 @@ st.title("💰 AI Financial Advisor & Fraud Detection Platform")
 with st.sidebar:
     st.header("Settings")
     run_button = st.button("Generate Report")
-    st.markdown("---")
     st.info("Enter your details and click 'Generate Report' to get started.")
+    st.markdown("---")
+    fraud_button = st.button("🔍 Check for Fraud")
+    st.markdown("---")
+    news_button = st.button("📰 Get Latest Finance News")
 
 # --- Section 1: Financial Advice ---
 st.header("Financial Goals & Transactions")
 st.markdown("---")
 
-financial_goals = st.text_area("What are your financial goals? (e.g., 'save for a down payment, retire early'), height=100)")
+financial_goals = st.text_area("What are your financial goals? (e.g., 'save for a down payment, retire early')", height=100)
 st.markdown("---")
 
 st.subheader("Recent Transaction History")
@@ -43,30 +46,26 @@ if run_button:
             st.markdown(">>> Your Personalized Financial Report")
             st.write(advice)
             print(advice)
+        
+if fraud_button:
+    with st.spinner("Detecting suspicious transactions..."):
+        mock_transactions_list = [t.strip() for t in user_transactions.split(",")]
+        transaction_embeddings = get_transaction_embeddings(mock_transactions_list)
 
-        with st.spinner("Detecting suspicious transactions..."):
-            mock_transactions_list = [t.strip() for t in user_transactions.split(",")]
-            transaction_embeddings = get_transaction_embeddings(mock_transactions_list)
+        if transaction_embeddings is not None:
+            anomalies = detect_anomalies(transaction_embeddings)
 
-            if transaction_embeddings is not None:
-                anomalies = detect_anomalies(transaction_embeddings)
-
-                st.markdown(">>> Fraud Detection Summary")
-                if anomalies:
-                    st.error("🚨 Suspicious Transactions Detected!")
-                    for index in anomalies:
-                        st.write(f"**Flagged:** {mock_transactions_list[index]}")
-                    st.write("Recommendation: Please review these transactions and consider reporting them.")
-                else:
-                    st.success("✅ No suspicious activity detected today.")
-
-        with st.spinner("Preparing your audio report..."):
-            full_report_text = f"Daily Financial Health Report.\n\n{advice}\n\nFraud Detection Summary: "
+            st.markdown(">>> Fraud Detection Summary")
             if anomalies:
-                full_report_text += "Suspicious activity was detected. Please review your flagged transactions."
+                st.error("🚨 Suspicious Transactions Detected!")
+                for index in anomalies:
+                    st.write(f"**Flagged:** {mock_transactions_list[index]}")
+                st.write("Recommendation: Please review these transactions and consider reporting them.")
             else:
-                full_report_text += "No suspicious activity was detected today."
-
-            generate_audio_report(full_report_text)
-            st.success("Audio report ready!")
-            st.audio("daily_report.mp3", format="audio/mp3")
+                st.success("✅ No suspicious activity detected today.")
+if news_button:
+    print("news_btn clicked")
+    with st.spinner("Preparing your audio report..."):
+        get_latest_finance_news_text()
+        st.success("Audio report ready!")
+        st.audio("daily_report.mp3", format="audio/mp3")

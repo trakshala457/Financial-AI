@@ -3,37 +3,21 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from sklearn.ensemble import IsolationForest
 import numpy as np
+from sentence_transformers import SentenceTransformer
 
-load_dotenv()
-api_key = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=api_key)
-
-model = genai.GenerativeModel('gemini-2.5-flash')
+_sbert_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def get_transaction_embeddings(transactions):
     """
-    Converts a list of transaction descriptions into a list of numerical embeddings.
-    Args:
-        transactions (list of str): A list of transaction descriptions.
-
-    Returns:
-        list of list of float: A list of embedding vectors.
+    Local fallback: use sentence-transformers to create embeddings
+    transactions: list[str]
+    returns: numpy.ndarray shape (n, dim)
     """
-
-    # We use a dedicated embedding model for this task.
-    # The 'models/embedding-001' is a powerful, general-purpose model.
-    # The 'TASK_TYPE_UNSPECIFIED' is good for general similarity searches.
     try:
-        response = genai.embed_content(
-            model="models/embedding-001",
-            content=transactions,
-            task_type="TASK_TYPE_UNSPECIFIED"
-        )
-         # Extract the embeddings from the response and return them as a NumPy array.
-        # NumPy is a standard library for numerical operations in Python.
-        return np.array(response['embedding'])
+        embeddings = _sbert_model.encode(transactions, show_progress_bar=False)
+        return np.array(embeddings)
     except Exception as e:
-        print(f"Error getting embeddings: {e}")
+        print("Local embedding error:", e)
         return None
 
 def detect_anomalies(embeddings):
@@ -66,32 +50,32 @@ def detect_anomalies(embeddings):
 
 
 # # --- Example Usage ---
-# if __name__ == "__main__":
-#     # This is a mock list of transactions.
-#     # Notice the last two transactions are "unusual" compared to the rest.
-#     mock_transactions = [
-#         "groceries at local market",
-#         "coffee at starbucks",
-#         "gas station purchase",
-#         "dinner at a restaurant",
-#         "online clothes shopping",
-#         "subscription to streaming service",
-#         "groceries at local market",
-#         "transfer to cryptocurrency wallet", # Anomaly 1
-#         "international flight ticket purchase" # Anomaly 2
-#     ]
+if __name__ == "__main__":
+    # This is a mock list of transactions.
+    # Notice the last two transactions are "unusual" compared to the rest.
+    mock_transactions = [
+        "groceries at local market",
+        "coffee at starbucks",
+        "gas station purchase",
+        "dinner at a restaurant",
+        "online clothes shopping",
+        "subscription to streaming service",
+        "groceries at local market",
+        "transfer to cryptocurrency wallet", # Anomaly 1
+        "international flight ticket purchase" # Anomaly 2
+    ]
     
-#     print("Step 1: Getting embeddings for transactions...")
-#     transaction_embeddings = get_transaction_embeddings(mock_transactions)
+    print("Step 1: Getting embeddings for transactions...")
+    transaction_embeddings = get_transaction_embeddings(mock_transactions)
     
-#     if transaction_embeddings is not None:
-#         print("Step 2: Detecting anomalies using Isolation Forest...")
-#         anomalies = detect_anomalies(transaction_embeddings)
+    if transaction_embeddings is not None:
+        print("Step 2: Detecting anomalies using Isolation Forest...")
+        anomalies = detect_anomalies(transaction_embeddings)
         
-#         if anomalies:
-#             print("\n--- Suspicious Transactions Detected! ---")
-#             for index in anomalies:
-#                 print(f"Index {index}: '{mock_transactions[index]}' has been flagged.")
-#             print("\nAction: Alert the user and request verification.")
-#         else:
-#             print("\nNo suspicious transactions detected.")
+        if anomalies:
+            print("\n--- Suspicious Transactions Detected! ---")
+            for index in anomalies:
+                print(f"Index {index}: '{mock_transactions[index]}' has been flagged.")
+            print("\nAction: Alert the user and request verification.")
+        else:
+            print("\nNo suspicious transactions detected.")
